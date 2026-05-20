@@ -10,7 +10,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("Omm2Tle")]
-[assembly: AssemblyCopyright("Copyright ©  2026")]
+[assembly: AssemblyCopyright("Copyright © 2026 Alexey Babenko (GreenAlf)")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
