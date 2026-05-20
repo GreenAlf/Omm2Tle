@@ -26,16 +26,20 @@ namespace Omm2Tle
 		[STAThread]
 		static void Main(string[] args)
 		{
-			string filemask = "*.txt";
+			int minArgsSilent = 3;
+			string in_mask = "*.txt";
+			string extension = "txt";
 			List<OmmModel> data = new List<OmmModel>();
 
 			bool isSilent = args.Any(arg => arg.Equals("--silent", StringComparison.OrdinalIgnoreCase))
-						|| args.Any(arg => arg.Equals("-s", StringComparison.OrdinalIgnoreCase));
-
+						 || args.Any(arg => arg.Equals("-s", StringComparison.OrdinalIgnoreCase));
 			bool isHelp = args.Any(arg => arg.Equals("help", StringComparison.OrdinalIgnoreCase))
-						|| args.Any(arg => arg.Equals("--help", StringComparison.OrdinalIgnoreCase))
-						|| args.Any(arg => arg.Equals("-help", StringComparison.OrdinalIgnoreCase))
-						|| args.Any(arg => arg.Equals("//help", StringComparison.OrdinalIgnoreCase));
+					   || args.Any(arg => arg.Equals("--help", StringComparison.OrdinalIgnoreCase))
+					   || args.Any(arg => arg.Equals("-help", StringComparison.OrdinalIgnoreCase))
+					   || args.Any(arg => arg.Equals("/help", StringComparison.OrdinalIgnoreCase));
+			//TODO: implement selftest!
+			bool isSelftest = args.Any(arg => arg.Equals("--test", StringComparison.OrdinalIgnoreCase))
+				           || args.Any(arg => arg.Equals("-t", StringComparison.OrdinalIgnoreCase));
 
 			if ((isSilent || isHelp) && !AttachConsole(ATTACH_PARENT_PROCESS))
 			{
@@ -51,7 +55,7 @@ namespace Omm2Tle
 
 			if (isSilent)
 			{
-				if(args.Length < 3)
+				if(args.Length < minArgsSilent)
 				{
 					ErrorLine("\nERROR: not enough arguments!");
 					ErrorLine("Arguments count: " + args.Length);
@@ -62,8 +66,65 @@ namespace Omm2Tle
 
 				string input = args[0];
 				string output = args[1];
-				var filteredArgs = args.Skip(2).ToArray();
-				//TODO: processing additional args here, mask and Searchoption mb
+				var filteredArgs = args.Skip(minArgsSilent).ToArray();
+
+				for(int i = 0; i < filteredArgs.Length; i++)
+				{
+					var item = filteredArgs[i];
+					switch (item)
+					{
+						case "help":
+						case "--help":
+						case "-help":
+						case "/help":
+							{
+								break;
+							}
+						case "-s":
+						case "--silent":
+							{
+								break;
+							}
+						case "-i":
+						case "--in_mask":
+							{
+								if(++i < filteredArgs.Length)
+								{
+									in_mask = filteredArgs[i];
+								}
+								else
+								{
+									ErrorLine("ERROR: undefined in_mask! Abort.");
+									return;
+								}
+								break;
+							}
+						case "-e":
+						case "--extension":
+							{
+								if(++i < filteredArgs.Length)
+								{
+									extension = filteredArgs[i];
+								}
+								else
+								{
+									ErrorLine("ERROR: undefined extension! Abort.");
+									return;
+								}
+								break;
+							}
+						case "-t":
+						case "--test":
+							{
+								break;
+							}
+						default:
+							{
+								ErrorLine("ERROR: unrecognized argument: " + item);
+								return;
+							}
+					}
+				}
 
 				try
 				{
@@ -74,11 +135,11 @@ namespace Omm2Tle
 					}
 					if(!Directory.Exists(output))
 					{
-						Console.WriteLine("Warning: output directory doesn't exist. Creating.");
+						WarningLine("Warning: output directory doesn't exist. Creating.");
 						Directory.CreateDirectory(output);
 					}
 
-					string[] files = Directory.GetFiles(input, filemask, SearchOption.TopDirectoryOnly);
+					string[] files = Directory.GetFiles(input, in_mask, SearchOption.TopDirectoryOnly);
 					foreach (string file in files)
 					{
 						data.Clear();
@@ -92,20 +153,21 @@ namespace Omm2Tle
 							//TODO: add FORWARD mode
 							ErrorLine("ERROR: " + ex.ToString());
 							using (StreamReader sr = new StreamReader(file))
-							using (StreamWriter sw = new StreamWriter(Path.Combine(output, Path.GetFileName(file))))
+							using (StreamWriter sw = new StreamWriter(
+								Path.Combine(output, Path.ChangeExtension(Path.GetFileName(file), extension))))
 							{
 								string line;
 
 								while ((line = sr.ReadLine()) != null)
 								{
-									//if (string.IsNullOrWhiteSpace(line)) continue;
 									sw.WriteLine(line);
 								}
 							}
 							continue;
 						}
-						
-						using (StreamWriter sw = new StreamWriter(Path.Combine(output, Path.GetFileName(file))))
+
+						using (StreamWriter sw = new StreamWriter(
+								Path.Combine(output, Path.ChangeExtension(Path.GetFileName(file), extension))))
 						{
 							foreach (var sat in data)
 							{
@@ -122,13 +184,8 @@ namespace Omm2Tle
 				{
 					ErrorLine("ERROR: " + ex.Message);
 				}
-				finally
-				{
-
-				}
 				return;
 			}
-
 
 			Application.EnableVisualStyles();
 			Application.SetCompatibleTextRenderingDefault(false);
@@ -157,6 +214,8 @@ namespace Omm2Tle
 
 			Console.WriteLine(rowFormat, "-h, --help", "Показать эту справочную информацию.");
 			Console.WriteLine(rowFormat, "-s, --silent", "Запуск в режиме консоли без открытия графического окна WinForms.");
+			Console.WriteLine(rowFormat, "-i, --in_mask", "Маска входных файлов (*.txt по умолчанию).");
+			Console.WriteLine(rowFormat, "-e, --extension", "Расширение выходных файлов (txt по умолчанию).");
 			Console.WriteLine();
 
 			Console.ForegroundColor = ConsoleColor.Yellow;
@@ -169,28 +228,30 @@ namespace Omm2Tle
 			Console.WriteLine("Omm2Tle.exe");
 
 			Console.ForegroundColor = ConsoleColor.DarkGray;
-			Console.Write("  Тихая конвертация файла:  ");
+			Console.Write("  Тихая конвертация:        ");
 			Console.ResetColor();
-			Console.WriteLine("Omm2Tle.exe \"C:\\data\\sat.csv\" --silent");
+			Console.WriteLine(".\\bin\\Debug\\Omm2Tle.exe .\\test\\input\\ .\\test\\output\\ --silent --in_mask *.csv --extension txt");
 
-			Console.ForegroundColor = ConsoleColor.DarkGray;
-			Console.Write("  Конвертация с сохранением: ");
-			Console.ResetColor();
-			Console.WriteLine("Omm2Tle.exe data.csv -s -o output.txt");
 			Console.WriteLine("\n-------------------------------------------------------------\n");
 		}
 
 		private static void DetachConsole()
 		{
-			//TODO: not working!
 			//FreeConsole();
-			SendKeys.SendWait("{ENTER}");
-			FreeConsole();
+			//SendKeys.SendWait("{ENTER}");
+			//FreeConsole();
 		}
 
 		private static void ErrorLine(string line)
 		{
 			Console.ForegroundColor = ConsoleColor.Red;
+			Console.WriteLine(line);
+			Console.ResetColor();
+		}
+
+		private static void WarningLine(string line)
+		{
+			Console.ForegroundColor = ConsoleColor.Yellow;
 			Console.WriteLine(line);
 			Console.ResetColor();
 		}

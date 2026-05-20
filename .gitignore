@@ -5,6 +5,7 @@
 
 *.sln
 temp
+test/output
 
 # User-specific files
 *.rsuser

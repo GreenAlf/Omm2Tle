@@ -11,29 +11,23 @@ namespace Omm2Tle
 	{
 		public static (string line1, string line2) ConvertRowToTle(dynamic row)
 		{
-			//NOTE: Подготовка данных с жестким форматированием под стандарты TLE
 			string noradId = ((string)row.NORAD_CAT_ID).PadLeft(5, '0');
 			string classification = string.IsNullOrEmpty((string)row.CLASSIFICATION_TYPE) ? "U" : (string)row.CLASSIFICATION_TYPE;
-
-			//NOTE: Разбор международной базы OBJECT_ID (например, 2003-048A)
 			string objectId = (string)row.OBJECT_ID;
 			string launchYear = objectId.Substring(2, 2);
 			string launchNum = objectId.Substring(5, 3).PadLeft(3, '0');
 			string launchPiece = objectId.Substring(8).PadRight(3, ' ');
 
-			//NOTE: Парсинг эпохи (инвертируем дату в формат TLE: YYDDD.DDDDDDDD)
 			DateTime epochDate = DateTime.Parse((string)row.EPOCH, CultureInfo.InvariantCulture);
 			string epochYear = epochDate.ToString("yy");
 			double dayOfYear = epochDate.DayOfYear + epochDate.TimeOfDay.TotalDays;
 			string epochDays = dayOfYear.ToString("000.00000000", CultureInfo.InvariantCulture);
 
-			//NOTE: Форматирование специфических полей TLE
 			string meanMotionDot = FormatTleDecimal((double)row.MEAN_MOTION_DOT, 8, true); // .DDDDDDDD
 			string meanMotionDdot = FormatExp((double)row.MEAN_MOTION_DDOT);              // DDddd-d
 			string bstar = FormatExp((double)row.BSTAR);                                  // DDddd-d
-			string elemSet = ((string)row.ELEMENT_SET_NO).PadLeft(6, ' ');
+			string elemSet = ((string)row.ELEMENT_SET_NO).PadLeft(4, ' ');
 
-			//NOTE: first string
 			StringBuilder l1 = new StringBuilder();
 			l1.Append("1 ");
 			l1.Append($"{noradId}{classification} ");
@@ -45,13 +39,13 @@ namespace Omm2Tle
 			l1.Append($"{elemSet}");
 			string line1 = AddChecksum(l1.ToString());
 
-			//NOTE: second string
-			string inc = ((double)row.INCLINATION).ToString("000.0000", CultureInfo.InvariantCulture).PadLeft(8, ' ');
-			string raan = ((double)row.RA_OF_ASC_NODE).ToString("000.0000", CultureInfo.InvariantCulture).PadLeft(8, ' ');
-			string ecc = ((double)row.ECCENTRICITY).ToString(".0000000", CultureInfo.InvariantCulture).Substring(1); // убираем ведущий ноль
-			string argPer = ((double)row.ARG_OF_PERICENTER).ToString("000.0000", CultureInfo.InvariantCulture).PadLeft(8, ' ');
-			string meanAnom = ((double)row.MEAN_ANOMALY).ToString("000.0000", CultureInfo.InvariantCulture).PadLeft(8, ' ');
-			string meanMotion = ((double)row.MEAN_MOTION).ToString("00.00000000", CultureInfo.InvariantCulture).PadLeft(11, ' ');
+			string inc = ((double)row.INCLINATION).ToString("0.0000", CultureInfo.InvariantCulture).PadLeft(8, ' ');
+			string raan = ((double)row.RA_OF_ASC_NODE).ToString(".0000", CultureInfo.InvariantCulture).PadLeft(8, ' ');
+			//TODO: не round, а просто отрезают символы, нужно уточнить
+			string ecc = ((double)row.ECCENTRICITY).ToString(".00000000", CultureInfo.InvariantCulture).Substring(1, 7); 
+			string argPer = ((double)row.ARG_OF_PERICENTER).ToString(".0000", CultureInfo.InvariantCulture).PadLeft(8, ' ');
+			string meanAnom = ((double)row.MEAN_ANOMALY).ToString(".0000", CultureInfo.InvariantCulture).PadLeft(8, ' ');
+			string meanMotion = ((double)row.MEAN_MOTION).ToString(".00000000", CultureInfo.InvariantCulture).PadLeft(11, ' ');
 			string revAtEpoch = ((string)row.REV_AT_EPOCH).PadLeft(5, ' ');
 
 			StringBuilder l2 = new StringBuilder();
@@ -69,19 +63,17 @@ namespace Omm2Tle
 			return (line1, line2);
 		}
 
-		//NOTE: Хелпер для форматирования первой производной среднего движения
 		private static string FormatTleDecimal(double value, int length, bool removeLeadingZero)
 		{
 			string sign = value < 0 ? "-" : " ";
-			string num = Math.Abs(value).ToString(".00000000", CultureInfo.InvariantCulture);
+			string num = Math.Abs(value).ToString($".00000000", CultureInfo.InvariantCulture);
 			if (removeLeadingZero && num.StartsWith("0")) num = num.Substring(1);
-			return (sign + num).Substring(0, length);
+			return (sign + num).Substring(0, length+2);
 		}
 
-		//NOTE: Хелпер для перевода BSTAR и DDOT в модифицированную научную нотацию TLE (например, 0.122E-5 -> 12200-5)
 		private static string FormatExp(double value)
 		{
-			if (value == 0) return " 00000-0";
+			if (value == 0) return " 00000+0";
 			string sign = value < 0 ? "-" : " ";
 			value = Math.Abs(value);
 
@@ -94,7 +86,6 @@ namespace Omm2Tle
 			return $"{sign}{mantissaStr}{expStr}";
 		}
 
-		//NOTE: Подсчет контрольной суммы (складываются только цифры и знаки минус)
 		private static string AddChecksum(string line)
 		{
 			int sum = 0;
