@@ -23,7 +23,7 @@ Omm2Tle.exe --help
 ```
 
 ### Download
-You can download the latest compiled binaries from the Releases (link will be here) page.
+You can download the latest compiled binaries from the [Releases](https://github.com/GreenAlf/Omm2Tle/releases) page.
 
 
 ## Licensing
