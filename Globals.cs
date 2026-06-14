@@ -20,14 +20,14 @@ namespace Omm2Tle
 		{
 			Console.WriteLine();
 			Console.ForegroundColor = ConsoleColor.Cyan;
-			Console.WriteLine("=== OMM to TLE Converter Utility v1.0 by Alexey Babenko ===");
+			Console.WriteLine("=== OMM to TLE Converter Utility v1.1 by Alexey Babenko ===");
 			Console.ResetColor();
 			Console.WriteLine("Converting satellite orbit parameters from CSV (OMM) format to classic TLE.\n");
 
 			Console.ForegroundColor = ConsoleColor.Yellow;
 			Console.WriteLine("USAGE:");
 			Console.ResetColor();
-			Console.WriteLine("{0, -4}Omm2Tle.exe [OMM_dir] [TLE_dir] [options]\n", "");
+			Console.WriteLine("{0, -4}Omm2Tle.exe [OMM_dir or File] [TLE_dir or File] [options]\n", "");
 
 			Console.ForegroundColor = ConsoleColor.Yellow;
 			Console.WriteLine("OPTIONS:");
@@ -40,65 +40,27 @@ namespace Omm2Tle
 			Console.WriteLine(rowFormat, "-s, --silent", "Run in console mode without opening the GUI window.");
 			Console.WriteLine(rowFormat, "-i, --in_mask", "Input file mask (*.txt by default).");
 			Console.WriteLine(rowFormat, "-e, --extension", "Output file extension (txt by default).");
+			Console.WriteLine(rowFormat, "-a, --add", "Process selected satellites (can be used multiple times).");
 			Console.WriteLine();
 
 			Console.ForegroundColor = ConsoleColor.Yellow;
-			Console.WriteLine("EXAMPLES:");
+			Console.WriteLine("\nEXAMPLES:");
 			Console.ResetColor();
 
 			Console.ForegroundColor = ConsoleColor.DarkGray;
-			Console.Write("Standard launch with GUI: ");
+			Console.Write("\tStandard launch with GUI: ");
 			Console.ResetColor();
-			Console.WriteLine("Omm2Tle.exe");
+			Console.WriteLine("\tOmm2Tle.exe");
 
 			Console.ForegroundColor = ConsoleColor.DarkGray;
-			Console.Write("Silent conversion: ");
+			Console.Write("\n\tSilent conversion: ");
 			Console.ResetColor();
-			Console.WriteLine(".\\bin\\Debug\\Omm2Tle.exe .\\test\\input\\ .\\test\\output\\ --silent --in_mask *.csv --extension txt");
-
-			Console.WriteLine("\n-------------------------------------------------------------\n");
-		}
-
-		//TODO: mb add localization later?
-		public static void ShowHelpRu()
-		{
-			Console.WriteLine();
-			Console.ForegroundColor = ConsoleColor.Cyan;
-			Console.WriteLine("=== OMM to TLE Converter Utility v1.0 by GreenAlf ===");
-			Console.ResetColor();
-			Console.WriteLine("Конвертация параметров орбиты спутников из формата CSV (OMM) в классический TLE.\n");
-
-			Console.ForegroundColor = ConsoleColor.Yellow;
-			Console.WriteLine("ИСПОЛЬЗОВАНИЕ:");
-			Console.ResetColor();
-			Console.WriteLine("{0, -4}Omm2Tle.exe [папка_с_OMM] [папка_для_TLE] [опции]\n", "");
-
-			Console.ForegroundColor = ConsoleColor.Yellow;
-			Console.WriteLine("ОПЦИИ:");
-			Console.ResetColor();
-
-			//NOTE: {padding, colWidth} {description}
-			string rowFormat = "  {0, -20} {1}";
-
-			Console.WriteLine(rowFormat, "-h, --help", "Показать эту справочную информацию.");
-			Console.WriteLine(rowFormat, "-s, --silent", "Запуск в режиме консоли без открытия графического окна WinForms.");
-			Console.WriteLine(rowFormat, "-i, --in_mask", "Маска входных файлов (*.txt по умолчанию).");
-			Console.WriteLine(rowFormat, "-e, --extension", "Расширение выходных файлов (txt по умолчанию).");
-			Console.WriteLine();
-
-			Console.ForegroundColor = ConsoleColor.Yellow;
-			Console.WriteLine("ПРИМЕРЫ:");
-			Console.ResetColor();
+			Console.WriteLine("\t.\\bin\\Debug\\Omm2Tle.exe .\\test\\input\\ .\\test\\output\\ --silent --in_mask *.csv --extension txt");
 
 			Console.ForegroundColor = ConsoleColor.DarkGray;
-			Console.Write("  Обычный запуск с формой:  ");
+			Console.Write("\n\tConversion for selected satellite: ");
 			Console.ResetColor();
-			Console.WriteLine("Omm2Tle.exe");
-
-			Console.ForegroundColor = ConsoleColor.DarkGray;
-			Console.Write("  Тихая конвертация:        ");
-			Console.ResetColor();
-			Console.WriteLine(".\\bin\\Debug\\Omm2Tle.exe .\\test\\input\\ .\\test\\output\\ --silent --in_mask *.csv --extension txt");
+			Console.WriteLine("\t.\\bin\\Debug\\Omm2Tle.exe weather.csv selected.txt --silent --in_mask *.csv -a \"FENGYUN 3F\" -a \"NOAA 20 (JPSS-1)\"");
 
 			Console.WriteLine("\n-------------------------------------------------------------\n");
 		}
@@ -109,7 +71,9 @@ namespace Omm2Tle
 			string in_mask = Globals.in_mask;
 			string extension = Globals.extension;
 			List<OmmModel> data = new List<OmmModel>();
+			List<string> selected_sats = new List<string>();
 
+			Console.WriteLine("\n");
 			if (args.Length < minArgsSilent)
 			{
 				ErrorLine("\nERROR: not enough arguments!");
@@ -123,9 +87,15 @@ namespace Omm2Tle
 			string output = args[1];
 			var filteredArgs = args.Skip(minArgsSilent).ToArray();
 
+			//foreach (string arg in filteredArgs)
+			//{
+			//	WarningLine(arg);
+			//}
+
 			for (int i = 0; i < filteredArgs.Length; i++)
 			{
 				var item = filteredArgs[i];
+
 				switch (item)
 				{
 					case "help":
@@ -173,6 +143,20 @@ namespace Omm2Tle
 						{
 							break;
 						}
+					case "-a":
+					case "--add":
+						{
+							if (++i < filteredArgs.Length)
+							{
+								selected_sats.Add(filteredArgs[i]);
+							}
+							else
+							{
+								ErrorLine("ERROR: sat name was not provided! Abort.");
+								return false;
+							}
+							break;
+						}
 					default:
 						{
 							ErrorLine("ERROR: unrecognized argument: " + item);
@@ -183,18 +167,30 @@ namespace Omm2Tle
 
 			try
 			{
-				if (!Directory.Exists(input))
+				if (!Directory.Exists(Path.GetDirectoryName(input)))
 				{
 					ErrorLine("ERROR: input directory doesn't exist! Abort.");
 					return false;
 				}
-				if (!Directory.Exists(output))
+				if (!Directory.Exists(Path.GetDirectoryName(output)))
 				{
 					WarningLine("Warning: output directory doesn't exist. Creating.");
-					Directory.CreateDirectory(output);
+					if (IsDirectoryPath(output))
+					{
+						Directory.CreateDirectory(output);
+					}
 				}
 
-				string[] files = Directory.GetFiles(input, in_mask, SearchOption.TopDirectoryOnly);
+				//NOTE: проверяем файл или директория на входе
+				string[] files = null;
+				if (IsDirectoryPath(input))
+				{
+					files = Directory.GetFiles(input, in_mask, SearchOption.TopDirectoryOnly);
+				}
+				if(IsFilePath(input))
+				{
+					files = new[] { input };
+				}
 				Console.WriteLine($"Found {files.Length} files...");
 				foreach (string file in files)
 				{
@@ -221,17 +217,31 @@ namespace Omm2Tle
 						}
 						continue;
 					}
-
-					using (StreamWriter sw = new StreamWriter(
-							Path.Combine(output, Path.ChangeExtension(Path.GetFileName(file), extension))))
+					string output_path = null;
+					if(IsDirectoryPath(output))
+					{
+						output_path = Path.Combine(output, Path.ChangeExtension(Path.GetFileName(file), extension));
+					}
+					if(IsFilePath(output))
+					{
+						output_path = output;
+					}
+					using (StreamWriter sw = new StreamWriter(output_path))
 					{
 						foreach (var sat in data)
 						{
-							Console.WriteLine("Processing sat: " + sat.OBJECT_NAME);
-							var (line1, line2) = Omm2Tle.ConvertRowToTle(sat);
-							sw.WriteLine(sat.OBJECT_NAME);
-							sw.WriteLine(line1);
-							sw.WriteLine(line2);
+							//NOTE: basic mode
+							if (selected_sats.Count == 0)
+							{
+								ProcessSat(sw, sat);
+							}
+							else
+							{
+								if (selected_sats.Contains(sat.OBJECT_NAME))
+								{
+									ProcessSat(sw, sat);
+								}
+							}
 						}
 					}
 				}
@@ -243,6 +253,15 @@ namespace Omm2Tle
 			}
 
 			return true;
+		}
+
+		private static void ProcessSat(StreamWriter sw, OmmModel sat)
+		{
+			Console.WriteLine("Processing sat: " + sat.OBJECT_NAME);
+			var (line1, line2) = Omm2Tle.ConvertRowToTle(sat);
+			sw.WriteLine(sat.OBJECT_NAME);
+			sw.WriteLine(line1);
+			sw.WriteLine(line2);
 		}
 
 		public static void ErrorLine(string line)
@@ -265,6 +284,32 @@ namespace Omm2Tle
 			//FreeConsole();
 			//SendKeys.SendWait("{ENTER}");
 			//FreeConsole();
+		}
+
+		public static bool IsFilePath(string path)
+		{
+			if (string.IsNullOrWhiteSpace(path))
+				return false;
+
+			//NOTE: Если путь заканчивается на разделитель - это директория
+			if (path.EndsWith(Path.DirectorySeparatorChar.ToString()) ||
+				path.EndsWith(Path.AltDirectorySeparatorChar.ToString()))
+				return false;
+
+			return Path.HasExtension(path);
+		}
+
+		public static bool IsDirectoryPath(string path)
+		{
+			if (string.IsNullOrWhiteSpace(path))
+				return false;
+
+			//NOTE: Если путь заканчивается на разделитель - это директория
+			if (path.EndsWith(Path.DirectorySeparatorChar.ToString()) ||
+				path.EndsWith(Path.AltDirectorySeparatorChar.ToString()))
+				return true;
+
+			return !Path.HasExtension(path);
 		}
 	}
 }

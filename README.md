@@ -9,7 +9,7 @@ A lightweight .NET Framework 4.7 utility designed to convert satellite orbit par
 
 ### How It Works
 
-The utility scans the target directory for files matching the specified file mask and processes them as follows:
+The utility scans the target directory for files matching the specified file mask or provided input file and processes them as follows:
 1. **Conversion**: If valid CSV/OMM data is detected, it converts the parameters into the classic TLE format.
 2. **Output**: Converted files are saved to the destination folder using the specified file extension.
 3. **Fallback Mechanism**: If a file cannot be converted (e.g., it is already in TLE format or contains plain text), the utility copies it to the destination folder **as-is**, changing only its extension. 
